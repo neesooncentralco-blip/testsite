@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Follower Ledger — Office Social Tracker</title>
+<style>
+  :root {
+    --bg: #14161A;
+    --surface: #1B1E24;
+    --border: #2E323C;
+    --border-soft: #262a32;
+    --text: #F2F3F5;
+    --text-muted: #8B909B;
+    --text-dim: #4A505C;
+    --accent: #5EEAD4;
+    --accent-strong: #7FF3E0;
+    --positive: #4ADE80;
+    --negative: #F87171;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body { padding: 24px 16px 60px; }
+
+  .mono { font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace; }
+
+  .wrap { max-width: 1100px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .total-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .total-num { font-size: 40px; font-weight: 600; line-height: 1; }
+  .total-sub { font-size: 13px; color: var(--text-muted); }
+  .delta { font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+  .delta.pos { color: var(--positive); }
+  .delta.neg { color: var(--negative); }
+  .delta.zero { color: var(--text-muted); }
+
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Buttons & inputs */
+  button { font-family: inherit; cursor: pointer; }
+  .btn {
+    background: var(--accent);
+    color: #0B0D10;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 15px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { background: var(--accent-strong); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 15px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: #4A505C; }
+  .btn-icon {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 4px;
+  }
+  .btn-icon:hover { color: var(--text); }
+
+  input, select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    outline: none;
+    font-family: inherit;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .section-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+
+  .modal {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .modal-head span { font-size: 13px; font-weight: 600; }
+  .modal-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .error-text { color: var(--negative); font-size: 12px; margin-top: 8px; }
+
+  /* Chart */
+  .chart-card { padding: 18px; margin-bottom: 20px; }
+  .chart-empty {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 40px 0;
+    text-align: center;
+  }
+  #chartSvg { width: 100%; height: auto; display: block; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+
+  /* Account cards */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .acc-card {
+    padding: 14px;
+    position: relative;
+  }
+  .acc-card .del-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  .acc-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .acc-handle {
+    font-size: 12.5px;
+    color: #C7CBD3;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .acc-count { font-size: 22px; font-weight: 600; }
+  .acc-delta { font-size: 11.5px; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 3px; }
+  .acc-delta.dim { color: var(--text-dim); font-weight: 400; }
+
+  /* Ledger */
+  .ledger-card { padding: 18px; }
+  .ledger-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .ledger-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .ledger-row:first-child { border-top: none; }
+  .ledger-icon { width: 22px; text-align: center; flex-shrink: 0; font-size: 14px; }
+  .ledger-name {
+    font-size: 13px;
+    color: #C7CBD3;
+    width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .ledger-platform { font-size: 11px; color: var(--text-dim); width: 90px; flex-shrink: 0; }
+  .ledger-input { width: 130px; }
+  .ledger-logged { font-size: 11px; color: var(--text-dim); }
+  .empty-msg { color: var(--text-muted); font-size: 13px; padding: 20px 0; text-align: center; }
+
+  .footnote { font-size: 11px; color: var(--text-dim); margin-top: 16px; text-align: center; }
+
+  @media (max-width: 640px) {
+    .total-num { font-size: 32px; }
+    .ledger-name { width: 110px; }
+    .ledger-platform { display: none; }
+    body { padding: 16px 10px 50px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <div class="eyebrow">Follower Ledger — Office Social Tracker</div>
+      <div class="total-row">
+        <span class="total-num mono" id="totalNum">0</span>
+        <span class="total-sub" id="totalSub">total followers</span>
+        <span class="delta" id="totalDelta"></span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ghost" id="exportBtn" title="Download CSV">⭳ Export CSV</button>
+      <button class="btn-ghost" id="lockToggleBtn">🔒 View only</button>
+      <button class="btn" id="addAccBtn" style="display:none;">+ Add account</button>
+    </div>
+  </div>
+
+  <div id="saveError" class="error-text" style="display:none; margin-bottom:12px;"></div>
+
+  <!-- Unlock modal -->
+  <div class="card modal" id="unlockModal" style="display:none;">
+    <div class="modal-head">
+      <span>Enter admin passcode</span>
+      <button class="btn-icon" id="closeUnlock">✕</button>
+    </div>
+    <div class="modal-row">
+      <input type="password" id="passcodeInput" placeholder="Passcode" style="flex:1; min-width:160px;">
+      <button class="btn" id="unlockBtn">Unlock</button>
+    </div>
+    <div class="error-text" id="unlockError" style="display:none;"></div>
+  </div>
+
+  <!-- Add account modal -->
+  <div class="card modal" id="addAccModal" style="display:none;">
+    <div class="modal-head">
+      <span>New account</span>
+      <button class="btn-icon" id="closeAddAcc">✕</button>
+    </div>
+    <div class="modal-row">
+      <select id="platformSelect"></select>
+      <input type="text" id="handleInput" placeholder="@handle or account name" style="flex:1; min-width:160px;">
+      <button class="btn" id="saveAccBtn">Add</button>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="card chart-card">
+    <div class="section-label">Total following over time</div>
+    <div id="chartArea"></div>
+  </div>
+
+  <!-- Account cards -->
+  <div class="cards-grid" id="cardsGrid"></div>
+
+  <!-- Ledger -->
+  <div class="card ledger-card">
+    <div class="ledger-head">
+      <div class="section-label" style="margin-bottom:0;">Viewing &amp; logging month</div>
+      <input type="month" id="monthPicker" class="mono">
+    </div>
+    <div id="ledgerBody"></div>
+  </div>
+
+  <div class="footnote">Data is stored in this browser only. Export CSV to share numbers with the rest of the office.</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Soft gate only — this runs entirely client-side, so anyone who reads
+  // the page source can find this. Change it before sharing the file.
+  const ADMIN_PASSCODE = "office2026";
+  const STORAGE_KEY = "followerLedgerData";
+
+  const PLATFORMS = {
+    "Instagram":    { letter: "IG", color: "#E1306C" },
+    "TikTok":       { letter: "TT", color: "#5EEAD4" },
+    "X / Twitter":  { letter: "X",  color: "#8B98A8" },
+    "YouTube":      { letter: "YT", color: "#F87171" },
+    "LinkedIn":     { letter: "in", color: "#60A5FA" },
+    "Facebook":     { letter: "FB", color: "#818CF8" },
+    "Telegram":     { letter: "TG", color: "#229ED9" },
+    "WhatsApp":     { letter: "WA", color: "#25D366" },
+  };
+  const PLATFORM_NAMES = Object.keys(PLATFORMS);
+
+  // ---- state ----
+  let accounts = [];   // {id, platform, handle}
+  let entries = [];    // {id, accountId, month, followers}
+  let isAdmin = false;
+  let logMonth = currentMonth();
+  let logDrafts = {};
+
+  // ---- helpers ----
+  function currentMonth() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+  function monthLabel(m) {
+    const parts = m.split("-");
+    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+    return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  }
+  function fmt(n) {
+    if (n === null || n === undefined || Number.isNaN(n)) return "—";
+    return n.toLocaleString("en-US");
+  }
+  function uid() {
+    return Math.random().toString(36).slice(2, 10);
+  }
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---- persistence ----
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        accounts = parsed.accounts || [];
+        entries = parsed.entries || [];
+      }
+    } catch (e) {
+      showSaveError("Couldn't load saved data.");
+    }
+  }
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ accounts, entries }));
+      hideSaveError();
+    } catch (e) {
+      showSaveError("Couldn't save — your browser storage may be full or disabled.");
+    }
+  }
+  function showSaveError(msg) {
+    const el = document.getElementById("saveError");
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+  function hideSaveError() {
+    document.getElementById("saveError").style.display = "none";
+  }
+
+  // ---- derived data ----
+  function getAccountsWithHistory() {
+    return accounts.map(function (acc) {
+      const hist = entries
+        .filter(function (e) { return e.accountId === acc.id; })
+        .sort(function (a, b) { return a.month.localeCompare(b.month); });
+      const upToView = hist.filter(function (e) { return e.month <= logMonth; });
+      const current = upToView.length ? upToView[upToView.length - 1] : null;
+      const previous = upToView.length > 1 ? upToView[upToView.length - 2] : null;
+      return Object.assign({}, acc, { hist: hist, current: current, previous: previous });
+    });
+  }
+
+  function getAllMonths() {
+    const set = new Set(entries.map(function (e) { return e.month; }));
+    set.add(logMonth);
+    return Array.from(set).sort();
+  }
+
+  function getChartData(accountsWithHistory, allMonths) {
+    return allMonths.map(function (month) {
+      let total = 0;
+      const byPlatform = {};
+      accountsWithHistory.forEach(function (acc) {
+        const upTo = acc.hist.filter(function (e) { return e.month <= month; });
+        if (upTo.length) {
+          const val = upTo[upTo.length - 1].followers;
+          total += val;
+          byPlatform[acc.platform] = (byPlatform[acc.platform] || 0) + val;
+        }
+      });
+      return Object.assign({ month: month, label: monthLabel(month), total: total }, byPlatform);
+    });
+  }
+
+  // ---- mutations ----
+  function addAccount(platform, handle) {
+    if (!isAdmin || !handle.trim()) return;
+    accounts.push({ id: uid(), platform: platform, handle: handle.trim() });
+    save();
+    render();
+  }
+  function removeAccount(id) {
+    if (!isAdmin) return;
+    accounts = accounts.filter(function (a) { return a.id !== id; });
+    entries = entries.filter(function (e) { return e.accountId !== id; });
+    save();
+    render();
+  }
+  function saveLogForAccount(accountId) {
+    if (!isAdmin) return;
+    const raw = logDrafts[accountId];
+    if (raw === undefined || raw === "") return;
+    const val = Number(String(raw).replace(/,/g, ""));
+    if (Number.isNaN(val) || val < 0) return;
+    const idx = entries.findIndex(function (e) { return e.accountId === accountId && e.month === logMonth; });
+    if (idx >= 0) {
+      entries[idx] = Object.assign({}, entries[idx], { followers: val });
+    } else {
+      entries.push({ id: uid(), accountId: accountId, month: logMonth, followers: val });
+    }
+    delete logDrafts[accountId];
+    save();
+    render();
+  }
+
+  function exportCSV() {
+    const allMonths = getAllMonths();
+    const accountsWithHistory = getAccountsWithHistory();
+    const chartData = getChartData(accountsWithHistory, allMonths);
+    const header = ["Month"].concat(accounts.map(function (a) { return a.handle + " (" + a.platform + ")"; })).concat(["Total"]);
+    const rows = allMonths.map(function (month) {
+      const cells = accounts.map(function (acc) {
+        const hist = entries
+          .filter(function (e) { return e.accountId === acc.id && e.month <= month; })
+          .sort(function (a, b) { return a.month.localeCompare(b.month); });
+        return hist.length ? hist[hist.length - 1].followers : "";
+      });
+      const totalEntry = chartData.find(function (d) { return d.month === month; });
+      const total = totalEntry ? totalEntry.total : "";
+      return [monthLabel(month)].concat(cells).concat([total]);
+    });
+    const csv = [header].concat(rows).map(function (r) {
+      return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(",");
+    }).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "follower-ledger-" + currentMonth() + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---- SVG chart ----
+  function renderChart(accountsWithHistory, allMonths, chartData) {
+    const chartArea = document.getElementById("chartArea");
+    const hasEnoughData = chartData.filter(function (d) { return d.total > 0; }).length >= 2;
+
+    if (!hasEnoughData) {
+      chartArea.innerHTML = '<div class="chart-empty">Log at least two months of data to see the growth trend.</div>';
+      return;
+    }
+
+    const activePlatforms = Array.from(new Set(accountsWithHistory.map(function (a) { return a.platform; })));
+
+    const W = 900, H = 280;
+    const padL = 46, padR = 16, padT = 16, padB = 30;
+    const innerW = W - padL - padR;
+    const innerH = H - padT - padB;
+
+    const maxVal = Math.max.apply(null, chartData.map(function (d) { return d.total; }).concat([1]));
+    const niceMax = maxVal <= 10 ? maxVal + 2 : Math.ceil(maxVal * 1.15 / 10) * 10;
+
+    function xFor(i) {
+      return padL + (chartData.length === 1 ? innerW / 2 : (i / (chartData.length - 1)) * innerW);
+    }
+    function yFor(v) {
+      return padT + innerH - (v / niceMax) * innerH;
+    }
+
+    let svg = '<svg id="chartSvg" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+
+    // gridlines
+    const gridSteps = 4;
+    for (let g = 0; g <= gridSteps; g++) {
+      const val = (niceMax / gridSteps) * g;
+      const y = yFor(val);
+      svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" stroke="#2E323C" stroke-dasharray="3,3" />';
+      svg += '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" fill="#8B909B" font-size="11" text-anchor="end" font-family="Inter, sans-serif">' + fmtAxis(val) + '</text>';
+    }
+
+    // x labels
+    chartData.forEach(function (d, i) {
+      if (chartData.length > 8 && i % Math.ceil(chartData.length / 8) !== 0 && i !== chartData.length - 1) return;
+      svg += '<text x="' + xFor(i) + '" y="' + (H - 8) + '" fill="#8B909B" font-size="11" text-anchor="middle" font-family="Inter, sans-serif">' + d.label + '</text>';
+    });
+
+    function pathFor(key) {
+      let d = "";
+      chartData.forEach(function (pt, i) {
+        const v = pt[key];
+        if (v === undefined || v === null) return;
+        const x = xFor(i), y = yFor(v);
+        d += (d === "" ? "M " : "L ") + x + " " + y + " ";
+      });
+      return d.trim();
+    }
+
+    // platform lines (behind total)
+    activePlatforms.forEach(function (p) {
+      const color = (PLATFORMS[p] || { color: "#8B909B" }).color;
+      const d = pathFor(p);
+      if (d) {
+        svg += '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85" />';
+      }
+    });
+
+    // total line
+    const totalPath = pathFor("total");
+    svg += '<path d="' + totalPath + '" fill="none" stroke="#5EEAD4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />';
+    chartData.forEach(function (pt, i) {
+      svg += '<circle cx="' + xFor(i) + '" cy="' + yFor(pt.total) + '" r="3.5" fill="#5EEAD4"><title>' + pt.label + ': ' + fmt(pt.total) + ' total</title></circle>';
+    });
+
+    svg += '</svg>';
+
+    let legend = '<div class="legend">';
+    legend += '<div class="legend-item"><span class="legend-swatch" style="background:#5EEAD4;"></span>Total</div>';
+    activePlatforms.forEach(function (p) {
+      const color = (PLATFORMS[p] || { color: "#8B909B" }).color;
+      legend += '<div class="legend-item"><span class="legend-swatch" style="background:' + color + '; opacity:0.85;"></span>' + escapeHtml(p) + '</div>';
+    });
+    legend += '</div>';
+
+    chartArea.innerHTML = svg + legend;
+  }
+  function fmtAxis(v) {
+    if (v >= 1000) return (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + "k";
+    return String(Math.round(v));
+  }
+
+  // ---- render ----
+  function render() {
+    const accountsWithHistory = getAccountsWithHistory();
+    const allMonths = getAllMonths();
+    const chartData = getChartData(accountsWithHistory, allMonths);
+
+    // header totals
+    const viewIdx = chartData.findIndex(function (d) { return d.month === logMonth; });
+    const totalNow = viewIdx >= 0 ? chartData[viewIdx].total : (chartData.length ? chartData[chartData.length - 1].total : 0);
+    const totalPrev = viewIdx > 0 ? chartData[viewIdx - 1].total : null;
+    const totalDelta = totalPrev !== null ? totalNow - totalPrev : null;
+    const totalPct = totalPrev ? (totalDelta / totalPrev) * 100 : null;
+
+    document.getElementById("totalNum").textContent = fmt(totalNow);
+    document.getElementById("totalSub").textContent = "total followers, " + monthLabel(logMonth);
+
+    const deltaEl = document.getElementById("totalDelta");
+    if (totalDelta === null) {
+      deltaEl.textContent = "";
+    } else {
+      const arrow = totalDelta > 0 ? "▲" : totalDelta < 0 ? "▼" : "•";
+      const cls = totalDelta > 0 ? "pos" : totalDelta < 0 ? "neg" : "zero";
+      deltaEl.className = "delta " + cls;
+      deltaEl.textContent = arrow + " " + (totalDelta > 0 ? "+" : "") + fmt(totalDelta) +
+        (totalPct !== null ? " (" + (totalPct > 0 ? "+" : "") + totalPct.toFixed(1) + "%)" : "");
+    }
+
+    renderChart(accountsWithHistory, allMonths, chartData);
+
+    // account cards
+    const cardsGrid = document.getElementById("cardsGrid");
+    if (accountsWithHistory.length === 0) {
+      cardsGrid.innerHTML = "";
+    } else {
+      cardsGrid.innerHTML = accountsWithHistory.map(function (acc) {
+        const meta = PLATFORMS[acc.platform] || { letter: "?", color: "#8B909B" };
+        const delta = (acc.current && acc.previous) ? acc.current.followers - acc.previous.followers : null;
+        let deltaHtml;
+        if (delta === null) {
+          deltaHtml = '<div class="acc-delta dim">No prior data</div>';
+        } else {
+          const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "•";
+          const cls = delta > 0 ? "pos" : delta < 0 ? "neg" : "zero";
+          const color = delta > 0 ? "var(--positive)" : delta < 0 ? "var(--negative)" : "var(--text-muted)";
+          deltaHtml = '<div class="acc-delta" style="color:' + color + ';">' + arrow + " " + (delta > 0 ? "+" : "") + fmt(delta) + " vs last log</div>";
+        }
+        return (
+          '<div class="card acc-card">' +
+            (isAdmin ? '<button class="btn-icon del-btn" data-remove="' + acc.id + '" title="Remove account">✕</button>' : "") +
+            '<div class="acc-top">' +
+              '<div class="badge" style="background:' + meta.color + '22; color:' + meta.color + ';">' + meta.letter + '</div>' +
+              '<div class="acc-handle">' + escapeHtml(acc.handle) + '</div>' +
+            '</div>' +
+            '<div class="acc-count mono">' + fmt(acc.current ? acc.current.followers : null) + '</div>' +
+            deltaHtml +
+          '</div>'
+        );
+      }).join("");
+    }
+
+    // ledger
+    const ledgerBody = document.getElementById("ledgerBody");
+    if (accounts.length === 0) {
+      ledgerBody.innerHTML = '<div class="empty-msg">' + (isAdmin ? "Add an account above to start logging counts." : "No accounts yet.") + '</div>';
+    } else if (!isAdmin) {
+      ledgerBody.innerHTML = '<div class="empty-msg">Unlock admin above to log new counts.</div>';
+    } else {
+      ledgerBody.innerHTML = accounts.map(function (acc) {
+        const meta = PLATFORMS[acc.platform] || { letter: "?", color: "#8B909B" };
+        const existing = entries.find(function (e) { return e.accountId === acc.id && e.month === logMonth; });
+        return (
+          '<div class="ledger-row">' +
+            '<div class="ledger-icon" style="color:' + meta.color + ';">' + meta.letter + '</div>' +
+            '<div class="ledger-name">' + escapeHtml(acc.handle) + '</div>' +
+            '<div class="ledger-platform">' + escapeHtml(acc.platform) + '</div>' +
+            '<input type="text" class="ledger-input mono" data-draft="' + acc.id + '" placeholder="' + (existing ? existing.followers : "followers") + '" value="' + (logDrafts[acc.id] || "") + '">' +
+            '<button class="btn-ghost" data-save="' + acc.id + '">' + (existing ? "Update" : "Save") + '</button>' +
+            (existing ? '<span class="ledger-logged">logged: ' + fmt(existing.followers) + '</span>' : '') +
+          '</div>'
+        );
+      }).join("");
+    }
+
+    // header action visibility
+    document.getElementById("addAccBtn").style.display = isAdmin ? "inline-flex" : "none";
+    const lockBtn = document.getElementById("lockToggleBtn");
+    if (isAdmin) {
+      lockBtn.textContent = "🔓 Admin";
+    } else {
+      lockBtn.textContent = "🔒 View only";
+    }
+    document.getElementById("exportBtn").disabled = accounts.length === 0;
+
+    bindDynamicEvents();
+  }
+
+  function bindDynamicEvents() {
+    document.querySelectorAll("[data-remove]").forEach(function (btn) {
+      btn.onclick = function () { removeAccount(btn.getAttribute("data-remove")); };
+    });
+    document.querySelectorAll("[data-draft]").forEach(function (input) {
+      const id = input.getAttribute("data-draft");
+      input.oninput = function () { logDrafts[id] = input.value; };
+      input.onkeydown = function (e) { if (e.key === "Enter") saveLogForAccount(id); };
+    });
+    document.querySelectorAll("[data-save]").forEach(function (btn) {
+      btn.onclick = function () { saveLogForAccount(btn.getAttribute("data-save")); };
+    });
+  }
+
+  // ---- static event bindings ----
+  function init() {
+    load();
+
+    const select = document.getElementById("platformSelect");
+    select.innerHTML = PLATFORM_NAMES.map(function (p) { return '<option value="' + p + '">' + p + '</option>'; }).join("");
+
+    const monthPicker = document.getElementById("monthPicker");
+    monthPicker.value = logMonth;
+    monthPicker.onchange = function () {
+      logMonth = monthPicker.value || currentMonth();
+      logDrafts = {};
+      render();
+    };
+
+    document.getElementById("exportBtn").onclick = exportCSV;
+
+    document.getElementById("lockToggleBtn").onclick = function () {
+      if (isAdmin) {
+        isAdmin = false;
+        render();
+      } else {
+        document.getElementById("unlockModal").style.display = "block";
+        document.getElementById("passcodeInput").focus();
+      }
+    };
+    document.getElementById("closeUnlock").onclick = function () {
+      document.getElementById("unlockModal").style.display = "none";
+      document.getElementById("passcodeInput").value = "";
+      document.getElementById("unlockError").style.display = "none";
+    };
+    document.getElementById("unlockBtn").onclick = tryUnlock;
+    document.getElementById("passcodeInput").onkeydown = function (e) {
+      if (e.key === "Enter") tryUnlock();
+    };
+    function tryUnlock() {
+      const val = document.getElementById("passcodeInput").value;
+      if (val === ADMIN_PASSCODE) {
+        isAdmin = true;
+        document.getElementById("unlockModal").style.display = "none";
+        document.getElementById("passcodeInput").value = "";
+        document.getElementById("unlockError").style.display = "none";
+        render();
+      } else {
+        const err = document.getElementById("unlockError");
+        err.textContent = "That's not right — check with whoever set up the passcode.";
+        err.style.display = "block";
+      }
+    }
+
+    document.getElementById("addAccBtn").onclick = function () {
+      document.getElementById("addAccModal").style.display = "block";
+      document.getElementById("handleInput").focus();
+    };
+    document.getElementById("closeAddAcc").onclick = function () {
+      document.getElementById("addAccModal").style.display = "none";
+      document.getElementById("handleInput").value = "";
+    };
+    document.getElementById("saveAccBtn").onclick = doAddAccount;
+    document.getElementById("handleInput").onkeydown = function (e) {
+      if (e.key === "Enter") doAddAccount();
+    };
+    function doAddAccount() {
+      const platform = select.value;
+      const handle = document.getElementById("handleInput").value;
+      if (!handle.trim()) return;
+      addAccount(platform, handle);
+      document.getElementById("handleInput").value = "";
+      document.getElementById("addAccModal").style.display = "none";
+    }
+
+    render();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>
